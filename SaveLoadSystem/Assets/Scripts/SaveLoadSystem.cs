@@ -1,10 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-
-using Unity.VisualScripting;
-
 using UnityEngine;
 
 public static class SaveLoadSystem
@@ -30,32 +26,34 @@ public static class SaveLoadSystem
         Debug.Log("PlayerPrefs have been initialized");
     }
     
+    //We call this to save data. We can pass an array (any size) and it will override old values
+    //and append new values
     public static void Save(DataBlock[] dataBlocksToSave) {
         if (dataBlocksToSave.Length == 0) {
             Debug.LogError("No DataBlock has been sent to save");
             return;
         } else {
-            string saveDataString = ""; 
+            string saveDataString = PlayerPrefs.GetString(ppKeyName);
+            var newString = "";
+            var oldString = "";
             foreach (DataBlock block in dataBlocksToSave) {
-                string currentSavedData = PlayerPrefs.GetString(ppKeyName);
-                //Check if we have a datablock already saved for this block
-                if (currentSavedData.Contains(block.identifier)) {
-                    //Replace the current block value with our new one
-                    var currentSerializedBlocks = currentSavedData.Split(':').ToList();
-                    foreach (string serializedBlock in currentSerializedBlocks) {
-                        if (serializedBlock.Split(',')[0] == block.identifier) {
-                            currentSerializedBlocks.Remove(serializedBlock);
-                            currentSerializedBlocks.Add(block.identifier + "," + block.value.ToString() + ":");
-                        }
-                        saveDataString += serializedBlock;
+                if (saveDataString.Contains(block.identifier)) {
+                    var splitDataString = saveDataString.Split(':');
+                    foreach (var splitBlock in splitDataString) {
+                        if (splitBlock != "") {
+                            if (splitBlock.Split(',')[0] == block.identifier) {
+                                oldString += block.identifier + "," + block.value + ":";
+                            }
+                        } 
                     }
                 } else {
-                    string temp = block.identifier + "," + block.value.ToString() + ":";
-                    saveDataString += temp;
+                    newString += block.identifier + "," + block.value + ":";
                 }
             }
-            PlayerPrefs.SetString(ppKeyName, saveDataString);
-            Debug.Log("DataSaved: " + saveDataString);
+            
+            string toSave = oldString + newString;
+            PlayerPrefs.SetString(ppKeyName, toSave);
+            Debug.Log("DataSaved: " + toSave);
         }
     }
 
@@ -70,9 +68,11 @@ public static class SaveLoadSystem
             string serializedData = PlayerPrefs.GetString(ppKeyName);
             var serializedBlocks = serializedData.Split(':');
             foreach (string serializedBlock in serializedBlocks) {
-                var splitBlock = serializedBlock.Split(',');
-                DataBlock deserializedBlock = new DataBlock(splitBlock[0], Int32.Parse(splitBlock[1]));
-                dataBlocksToLoad.Add(deserializedBlock);
+                if (serializedBlock != "") {
+                    var splitBlock = serializedBlock.Split(',');
+                    DataBlock deserializedBlock = new DataBlock(splitBlock[0], Int32.Parse(splitBlock[1]));
+                    dataBlocksToLoad.Add(deserializedBlock);
+                }
             }
         
             return dataBlocksToLoad.ToArray();
@@ -80,7 +80,22 @@ public static class SaveLoadSystem
     }
 
     //Used to load a specific data block
-    public static void LoadSpecificBlock(string identifier) {
-        
+    public static DataBlock LoadSpecificBlock(string identifier) {
+        if (!PlayerPrefs.HasKey(ppKeyName)) {
+            Debug.LogError("Trying to load " + identifier + " from: " + ppKeyName + " however this key does not exist!");
+            return new DataBlock("INVALID", 0);
+        } else {
+            string serializedData = PlayerPrefs.GetString(ppKeyName);
+            var serializedBlocks = serializedData.Split(':');
+
+            foreach (var serializedBlock in serializedBlocks) {
+                var temp = serializedBlock.Split(',');
+                if (temp[0] == identifier) {
+                    return new DataBlock(temp[0], Int32.Parse(temp[1]));
+                }
+            }
+            Debug.LogError("Trying to load data for " + identifier + " however  it does not exist inside of " + ppKeyName);
+            return new DataBlock("INVALID", 0);
+        }
     }
 }
