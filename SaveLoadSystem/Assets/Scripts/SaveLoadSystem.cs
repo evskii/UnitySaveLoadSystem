@@ -61,6 +61,39 @@ public static class SaveLoadSystem
             PlayerPrefs.SetString(ppKeyName, newSaveData); //Save our data to the playerprefs key
         }
     }
+    
+    
+    //Override for the method above to allow for sending of a single block
+    public static void Save(DataBlock dataBlockToSave) {
+        if (dataBlockToSave.identifier == "") {
+            Debug.LogError("No DataBlock has been sent to save");
+            return;
+        } else {
+            string savedData = PlayerPrefs.GetString(ppKeyName); //Get our currently saved string of data
+            var chunks = savedData.Split(':').ToList(); //Split that up into datablocks as string chunks
+            if (!string.IsNullOrEmpty(dataBlockToSave.identifier)) { //Using Split() can create an empty string so we ignore those
+                bool newData = true; //This is a switch to see if it was a new datablock or one that we are just editing
+                for (int i = 0; i < chunks.Count; i++) { //Loop through the string chunks
+                    if (chunks[i].Split(',')[0] == dataBlockToSave.identifier) { //If we have find a chunk that is the same id as the block we are saving
+                        newData = false; //Switch the switch
+                        chunks[i] = dataBlockToSave.identifier + "," + dataBlockToSave.value; //Modify the chunk so that it uses the new value
+                        break; //Break the loop
+                    }
+                }
+                if (newData) { //If the loop gets here and the switch hasnt been triggered then we know its new data
+                    chunks.Add(dataBlockToSave.identifier + "," + dataBlockToSave.value); //Add to the end of our list of chunks
+                }
+            }
+            string newSaveData = ""; //Create a new empty string to serialize our chunks into
+            foreach (string blockString in chunks) { //Loop through our chunks
+                if (!string.IsNullOrEmpty(blockString)) { //One last check for empty strings
+                    newSaveData += blockString + ":"; //Merge each chunk into the single string
+                }
+            }
+            Debug.Log("NewSaveData: " + newSaveData); 
+            PlayerPrefs.SetString(ppKeyName, newSaveData); //Save our data to the playerprefs key
+        }
+    }
 
     //Used to load all data blocks as an array
     public static DataBlock[] LoadAll() {
